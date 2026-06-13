@@ -12,9 +12,6 @@ const COUNTRIES = [
   { country: "India",                region: "India"     },
   { country: "Singapore",            region: "Singapore" },
   { country: "United Arab Emirates", region: "Dubai"     },
-  { country: "Germany",              region: "Germany"   },
-  { country: "United Kingdom",       region: "UK"        },
-  { country: "United States",        region: "USA"       },
 ];
 
 const KEYWORDS = ["Product Designer", "UI/UX Designer"];
