@@ -18,7 +18,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Run scraper
+       - name: Run scraper
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
         run: node fetch-jobs.mjs --force
       - name: Commit results
         run: |
