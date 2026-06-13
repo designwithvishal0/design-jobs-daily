@@ -5,7 +5,6 @@ import { fileURLToPath } from "url";
 const OUTPUT = path.join(path.dirname(fileURLToPath(import.meta.url)), "jobs.json");
 const TOKEN  = process.env.APIFY_TOKEN;
 const ACTOR  = "agentx~all-jobs-scraper";
-
 const log = m => console.log(`[${new Date().toISOString()}] ${m}`);
 
 const COUNTRIES = [
@@ -15,8 +14,6 @@ const COUNTRIES = [
 ];
 
 const KEYWORDS = ["Product Designer", "UI/UX Designer"];
-const PER_QUERY = 12;
-const POSTED_SINCE = "7 days";
 
 function timeAgo(d) {
   if (!d) return "Recently";
@@ -30,19 +27,50 @@ function timeAgo(d) {
 const guessRole = (t = "") =>
   t.toLowerCase().includes("product designer") ? "Product Designer" : "UI/UX Designer";
 
+async function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
 async function runActor(keyword, country) {
-  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}`;
-  const body = { keyword, country, max_results: PER_QUERY, posted_since: POSTED_SINCE, job_type: "all" };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200)}`);
+  const startRes = await fetch(
+    `https://api.apify.com/v2/acts/${ACTOR}/runs?token=${TOKEN}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        keyword,
+        country,
+        max_results: 10,
+        posted_since: "7 days",
+        job_type: "all",
+      }),
+    }
+  );
+  if (!startRes.ok) {
+    throw new Error(`start failed ${startRes.status}: ${(await startRes.text()).slice(0, 100)}`);
   }
-  return res.json();
+  const startData = await startRes.json();
+  const runId = startData.data.id;
+  const datasetId = startData.data.defaultDatasetId;
+  log(`  run ${runId} started, polling...`);
+
+  for (let i = 0; i < 48; i++) {
+    await sleep(5000);
+    const poll = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${TOKEN}`);
+    if (!poll.ok) continue;
+    const { data } = await poll.json();
+    log(`  status: ${data.status} (${i + 1})`);
+    if (data.status === "SUCCEEDED") break;
+    if (["FAILED", "ABORTED", "TIMED-OUT"].includes(data.status)) {
+      throw new Error(`run ended with ${data.status}`);
+    }
+  }
+
+  const dsRes = await fetch(
+    `https://api.apify.com/v2/datasets/${datasetId}/items?token=${TOKEN}&clean=true`
+  );
+  if (!dsRes.ok) throw new Error(`dataset read failed ${dsRes.status}`);
+  return dsRes.json();
 }
 
 function normalize(raw, region) {
@@ -60,57 +88,10 @@ function normalize(raw, region) {
       salary = `${c} ${raw.salary.minValue || ""}-${raw.salary.maxValue || ""}`.trim();
     }
   } else if (raw.salaryText) salary = raw.salaryText;
-
   const tags = Array.isArray(raw.skills) ? raw.skills.slice(0, 5)
     : Array.isArray(raw.tags) ? raw.tags.slice(0, 5) : [];
-
   return {
     id: `${platform}_${Buffer.from(url || title + company).toString("base64").slice(0, 12)}`,
     title, company, location, region, platform,
     postedTime: timeAgo(posted),
-    experience: raw.seniority || raw.experience || "0-3 years",
-    salary, url,
-    description: (raw.description || raw.summary || "").replace(/<[^>]*>/g, "").slice(0, 240),
-    tags, role: raw.role || guessRole(title),
-  };
-}
-
-async function main() {
-  if (!TOKEN) throw new Error("APIFY_TOKEN env var not set");
-  log("Starting Apify multi-country fetch...");
-
-  const all = [];
-  const seen = new Set();
-
-  for (const { country, region } of COUNTRIES) {
-    for (const keyword of KEYWORDS) {
-      try {
-        const items = await runActor(keyword, country);
-        let added = 0;
-        for (const raw of items) {
-          const job = normalize(raw, region);
-          const key = job.url || job.title + job.company;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          all.push(job);
-          added++;
-        }
-        log(`${country} / ${keyword}: ${added} jobs`);
-      } catch (e) {
-        log(`${country} / ${keyword} error: ${e.message}`);
-      }
-    }
-  }
-
-  if (all.length === 0) throw new Error("No jobs returned from Apify");
-
-  await fs.writeFile(OUTPUT, JSON.stringify({
-    fetchedAt: new Date().toISOString(),
-    count: all.length,
-    jobs: all,
-  }, null, 2));
-
-  log(`Done. Saved ${all.length} jobs.`);
-}
-
-main().catch(e => { log(`ERROR: ${e.message}`); process.exit(1); });
+    experience: raw.seniority || raw.experience || "0-3
