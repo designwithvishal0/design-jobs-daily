@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design Jobs Daily</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #09091c; color: #d0d0ee; font-family: 'Inter', -apple-system, sans-serif; min-height: 100vh; }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: #09091c; } ::-webkit-scrollbar-thumb { background: #1c1c38; border-radius: 4px; }
+
+    .header { position: sticky; top: 0; z-index: 100; background: rgba(9,9,28,0.96); backdrop-filter: blur(18px); border-bottom: 1px solid #141430; padding: 22px 36px 0; }
+    .header-inner { max-width: 1200px; margin: 0 auto; }
+    .title-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .title-left { display: flex; align-items: center; gap: 10px; }
+    .logo { width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, #6d28d9, #a78bfa); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+    .title { font-size: 18px; font-weight: 800; color: #f0f0ff; letter-spacing: -0.5px; }
+    .live-badge { display: flex; align-items: center; gap: 5px; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2); border-radius: 999px; padding: 2px 9px; }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: blink 2s ease-in-out infinite; }
+    .live-text { color: #4ade80; font-size: 10px; font-weight: 800; letter-spacing: 0.8px; }
+    .meta { color: #252545; font-size: 12px; margin-top: 5px; }
+    .meta .stale { color: #fb923c; }
+    .refresh-btn { background: linear-gradient(135deg, #6d28d9, #8b5cf6); color: #fff; border: none; padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 4px 20px rgba(109,40,217,0.35); white-space: nowrap; }
+    .refresh-btn:hover { opacity: 0.9; }
+
+    .filter-row { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; padding-bottom: 16px; }
+    .filter-section { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .filter-label { color: #1e1e3c; font-size: 10px; font-weight: 800; letter-spacing: 1px; white-space: nowrap; }
+    .divider { width: 1px; height: 20px; background: #141430; margin: 0 4px; flex-shrink: 0; }
+    .pill { background: transparent; color: #4a4a68; border: 1px solid #1f1f3a; padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: inherit; }
+
+    .content { max-width: 1200px; margin: 0 auto; padding: 24px 36px 60px; }
+    .result-count { color: #252545; font-size: 12px; font-weight: 500; margin-bottom: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+
+    .card { background: #101024; border: 1px solid #1c1c38; border-radius: 16px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s ease; cursor: pointer; text-decoration: none; animation: fadeUp 0.35s ease-out both; }
+    .card:hover { background: #13132a; transform: translateY(-3px); }
+    .card-top { display: flex; justify-content: space-between; align-items: center; }
+    .badge { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; }
+    .posted-time { color: #2e2e52; font-size: 11px; }
+    .company { color: #3e3e62; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .job-title { color: #d8d8f0; font-size: 16px; font-weight: 700; line-height: 1.35; }
+    .card:hover .job-title { color: #f0f0ff; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    .meta-item { color: #363658; font-size: 12px; }
+    .salary { color: #10b981 !important; font-weight: 600; }
+    .description { color: #2e2e52; font-size: 12.5px; line-height: 1.7; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { background: #0e0e28; color: #4a4a72; border: 1px solid #1a1a38; padding: 3px 9px; border-radius: 999px; font-size: 11px; }
+    .apply-row { margin-top: 2px; padding-top: 12px; border-top: 1px solid #181830; }
+    .apply-text { color: #333358; font-size: 12px; font-weight: 700; transition: color 0.2s; }
+    .card:hover .apply-text { color: #a78bfa; }
+
+    .section-label { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; color: #1a1a3a; margin: 24px 0 10px; text-transform: uppercase; }
+    .empty { text-align: center; padding: 80px 0; }
+    .empty-icon { font-size: 40px; margin-bottom: 14px; }
+    .empty-text { color: #252545; font-size: 14px; }
+    .clear-btn { background: none; border: none; color: #7c3aed; cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; margin-top: 12px; display: block; margin: 12px auto 0; }
+
+    .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 24px; }
+    .source-chip { background: #0e0e28; border: 1px solid #1a1a38; border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 3px; }
+    .source-name { font-size: 12px; font-weight: 700; color: #6a6a9a; }
+    .source-count { font-size: 20px; font-weight: 800; color: #e0e0f0; }
+    .source-type { font-size: 10px; color: #2e2e52; font-weight: 500; }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="title-row">
+      <div>
+        <div class="title-left">
+          <div class="logo">✦</div>
+          <span class="title">Design Jobs Daily</span>
+          <div class="live-badge"><div class="live-dot"></div><span class="live-text">DAILY</span></div>
+        </div>
+        <p class="meta" id="meta-text">Loading...</p>
+      </div>
+      <button class="refresh-btn" onclick="loadJobs()">↻ Reload</button>
+    </div>
+
+    <div class="filter-row">
+      <span class="filter-label">ROLE</span>
+      <div class="filter-section">
+        <button class="pill" id="role-All"           onclick="setRole('All')">All</button>
+        <button class="pill" id="role-ProductDesigner" onclick="setRole('Product Designer')">Product Designer</button>
+        <button class="pill" id="role-UIUXDesigner"    onclick="setRole('UI/UX Designer')">UI/UX Designer</button>
+      </div>
+      <div class="divider"></div>
+      <span class="filter-label">PLATFORM</span>
+      <div class="filter-section" id="platform-filters">
+        <!-- generated dynamically from data -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+  <div id="source-summary"></div>
+  <div id="result-count" class="result-count"></div>
+  <div id="grid" class="grid"></div>
+</div>
+
+<script>
+  // Color palette — one per platform, falls back to Other
+  const COLORS = {
+    Naukri:      { color: "#fb923c", bg: "rgba(251,146,60,0.12)",   border: "rgba(251,146,60,0.3)"   },
+    Shine:       { color: "#fbbf24", bg: "rgba(251,191,36,0.1)",    border: "rgba(251,191,36,0.28)"  },
+    TimesJobs:   { color: "#f87171", bg: "rgba(248,113,113,0.1)",   border: "rgba(248,113,113,0.28)" },
+    Internshala: { color: "#34d399", bg: "rgba(52,211,153,0.1)",    border: "rgba(52,211,153,0.28)"  },
+    Smashing:    { color: "#f97316", bg: "rgba(249,115,22,0.1)",    border: "rgba(249,115,22,0.28)"  },
+    Coroflot:    { color: "#22d3ee", bg: "rgba(34,211,238,0.1)",    border: "rgba(34,211,238,0.28)"  },
+    Authentic:   { color: "#fb7185", bg: "rgba(251,113,133,0.1)",   border: "rgba(251,113,133,0.28)" },
+    Arbeitnow:   { color: "#c084fc", bg: "rgba(192,132,252,0.12)",  border: "rgba(192,132,252,0.3)"  },
+    WWR:         { color: "#818cf8", bg: "rgba(129,140,248,0.1)",   border: "rgba(129,140,248,0.28)" },
+    Remotive:    { color: "#38bdf8", bg: "rgba(56,189,248,0.1)",    border: "rgba(56,189,248,0.28)"  },
+    Jobicy:      { color: "#a78bfa", bg: "rgba(167,139,250,0.1)",   border: "rgba(167,139,250,0.28)" },
+    RemoteOK:    { color: "#4ade80", bg: "rgba(74,222,128,0.1)",    border: "rgba(74,222,128,0.28)"  },
+    Indeed:      { color: "#60a5fa", bg: "rgba(96,165,250,0.1)",    border: "rgba(96,165,250,0.28)"  },
+    Other:       { color: "#94a3b8", bg: "rgba(148,163,184,0.1)",   border: "rgba(148,163,184,0.25)" },
+  };
+
+  const SOURCE_TYPE = {
+    Naukri: "India", Shine: "India", TimesJobs: "India", Internshala: "India",
+    Smashing: "Design", Coroflot: "Design", Authentic: "Design",
+    Arbeitnow: "Global", WWR: "Remote", Remotive: "Remote",
+    Jobicy: "Remote", RemoteOK: "Remote", Indeed: "India",
+  };
+
+  let allJobs      = [];
+  let roleFilter   = "All";
+  let platFilter   = "All";
+  let fetchedAt    = null;
+
+  function c(p) { return COLORS[p] || COLORS.Other; }
+
+  function timeAgo(iso) {
+    if (!iso) return "Recently";
+    const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000);
+    if (h < 1) return "Just now";
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h/24)}d ago`;
+  }
+
+  function isStale(iso) { return iso && Date.now() - new Date(iso).getTime() > 24*3600000; }
+
+  async function loadJobs() {
+    try {
+      const res = await fetch("jobs.json?t=" + Date.now());
+      if (!res.ok) throw new Error("jobs.json not found");
+      const data  = await res.json();
+      allJobs     = data.jobs || [];
+      fetchedAt   = data.fetchedAt;
+      buildPlatformFilters();
+      render();
+    } catch {
+      document.getElementById("grid").innerHTML =
+        `<div class="empty"><div class="empty-icon">⚠️</div><p class="empty-text">Could not load jobs.json — run fetch-jobs.mjs first.</p></div>`;
+      document.getElementById("meta-text").textContent = "No data. Run the scraper.";
+    }
+  }
+
+  function buildPlatformFilters() {
+    const platforms = [...new Set(allJobs.map(j => j.platform).filter(Boolean))].sort();
+    const container = document.getElementById("platform-filters");
+    const allCount  = allJobs.length;
+
+    const pills = [{ label: `All (${allCount})`, value: "All" }]
+      .concat(platforms.map(p => ({ label: `${p} (${allJobs.filter(j=>j.platform===p).length})`, value: p })));
+
+    container.innerHTML = pills.map(({ label, value }) => {
+      const col = c(value);
+      return `<button class="pill" id="plat-${value.replace(/\s/g,'_')}"
+        onclick="setPlatform('${value}')"
+        style="--pc:${col.color};--pbg:${col.bg};--pb:${col.border}">${label}</button>`;
+    }).join("");
+
+    applyRoleStyle();
+    applyPlatStyle();
+  }
+
+  function applyRoleStyle() {
+    ["All","ProductDesigner","UIUXDesigner"].forEach(k => {
+      const b = document.getElementById("role-" + k);
+      if (b) { b.style.background="transparent"; b.style.color="#4a4a68"; b.style.borderColor="#1f1f3a"; }
+    });
+    const id = roleFilter === "All" ? "role-All" : roleFilter === "Product Designer" ? "role-ProductDesigner" : "role-UIUXDesigner";
+    const b  = document.getElementById(id);
+    if (b) { b.style.background="rgba(167,139,250,0.12)"; b.style.color="#a78bfa"; b.style.borderColor="rgba(167,139,250,0.28)"; }
+  }
+
+  function applyPlatStyle() {
+    document.querySelectorAll("#platform-filters .pill").forEach(b => {
+      b.style.background    = "transparent";
+      b.style.color         = "#4a4a68";
+      b.style.borderColor   = "#1f1f3a";
+    });
+    const active = document.getElementById("plat-" + platFilter.replace(/\s/g,"_"));
+    if (active) {
+      active.style.background  = active.style.getPropertyValue("--pbg") || "rgba(167,139,250,0.12)";
+      active.style.color       = active.style.getPropertyValue("--pc")  || "#a78bfa";
+      active.style.borderColor = active.style.getPropertyValue("--pb")  || "rgba(167,139,250,0.28)";
+      // re-apply because CSS var doesn't work via style.background trick
+      const col = c(platFilter);
+      active.style.background  = col.bg;
+      active.style.color       = col.color;
+      active.style.borderColor = col.border;
+    }
+  }
+
+  function setRole(r) { roleFilter = r; applyRoleStyle(); render(); }
+  function setPlatform(p) { platFilter = p; applyPlatStyle(); render(); }
+  function clearFilters() { roleFilter = "All"; platFilter = "All"; applyRoleStyle(); applyPlatStyle(); render(); }
+
+  function matchRole(job) {
+    if (roleFilter === "All") return true;
+    const t = (job.title || "").toLowerCase();
+    if (roleFilter === "Product Designer") return t.includes("product designer") || job.role === "Product Designer";
+    return t.includes("ui") || t.includes("ux") || t.includes("user experience") || job.role === "UI/UX Designer";
+  }
+
+  function render() {
+    const filtered = allJobs.filter(j => matchRole(j) && (platFilter === "All" || j.platform === platFilter));
+
+    // Meta line
+    if (fetchedAt) {
+      const stale = isStale(fetchedAt);
+      document.getElementById("meta-text").innerHTML = stale
+        ? `<span class="stale">⚠ Last fetched ${timeAgo(fetchedAt)} — run scraper for fresh results</span>`
+        : `Last fetched ${timeAgo(fetchedAt)} · ${allJobs.length} jobs from ${new Set(allJobs.map(j=>j.platform)).size} sources`;
+    }
+
+    // Source summary chips
+    const platforms = [...new Set(allJobs.map(j=>j.platform).filter(Boolean))].sort();
+    if (platFilter === "All" && roleFilter === "All" && platforms.length > 0) {
+      document.getElementById("source-summary").innerHTML =
+        `<p class="section-label">Sources active this fetch</p>
+         <div class="source-grid">${
+           platforms.map(p => {
+             const cnt = allJobs.filter(j=>j.platform===p).length;
+             const col = c(p);
+             return `<div class="source-chip" style="border-color:${col.border}">
+               <span class="source-count" style="color:${col.color}">${cnt}</span>
+               <span class="source-name">${p}</span>
+               <span class="source-type">${SOURCE_TYPE[p]||"Global"}</span>
+             </div>`;
+           }).join("")
+         }</div>`;
+    } else {
+      document.getElementById("source-summary").innerHTML = "";
+    }
+
+    // Result count
+    document.getElementById("result-count").textContent =
+      `${filtered.length} result${filtered.length!==1?"s":""}` +
+      (roleFilter !== "All" ? ` for ${roleFilter}` : "") +
+      (platFilter !== "All" ? ` on ${platFilter}` : "") +
+      " · freshness 24 hrs · exp 0-3 yrs";
+
+    // Cards
+    const grid = document.getElementById("grid");
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="empty">
+        <div class="empty-icon">🔍</div>
+        <p class="empty-text">No jobs match your filters.</p>
+        <button class="clear-btn" onclick="clearFilters()">Clear filters</button>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map((job, i) => {
+      const col    = c(job.platform);
+      const salary = job.salary && !["not disclosed","Not Disclosed"].includes(job.salary) ? job.salary : null;
+      return `<a class="card" href="${job.url||"#"}" target="_blank" rel="noopener" style="animation-delay:${i*0.03}s">
+        <div class="card-top">
+          <span class="badge" style="background:${col.bg};color:${col.color};border:1px solid ${col.border}">${job.platform||"Other"}</span>
+          <span class="posted-time">🕐 ${job.postedTime||"Recently"}</span>
+        </div>
+        <div>
+          <p class="company">${job.company||"See listing"}</p>
+          <h3 class="job-title">${job.title}</h3>
+        </div>
+        <div class="meta-row">
+          ${job.location?`<span class="meta-item">📍 ${job.location}</span>`:""}
+          <span class="meta-item">⏱ ${job.experience||"0-3 yrs"}</span>
+          ${salary?`<span class="meta-item salary">💰 ${salary}</span>`:""}
+        </div>
+        ${job.description?`<p class="description">${job.description}</p>`:""}
+        ${job.tags?.length?`<div class="tags">${job.tags.slice(0,5).map(t=>`<span class="tag">${t}</span>`).join("")}</div>`:""}
+        ${job.url?`<div class="apply-row"><span class="apply-text">Apply now →</span></div>`:""}
+      </a>`;
+    }).join("");
+  }
+
+  loadJobs();
+</script>
+</body>
+</html>
