@@ -3,9 +3,23 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const OUTPUT = path.join(path.dirname(fileURLToPath(import.meta.url)), "jobs.json");
+const TOKEN  = process.env.APIFY_TOKEN;
+const ACTOR  = "agentx~all-jobs-scraper";
+
 const log = m => console.log(`[${new Date().toISOString()}] ${m}`);
-const uid = s => Buffer.from(String(s || Math.random())).toString("base64").slice(0, 10);
-const guessRole = (t = "") => t.toLowerCase().includes("product designer") ? "Product Designer" : "UI/UX Designer";
+
+const COUNTRIES = [
+  { country: "India",                region: "India"     },
+  { country: "Singapore",            region: "Singapore" },
+  { country: "United Arab Emirates", region: "Dubai"     },
+  { country: "Germany",              region: "Germany"   },
+  { country: "United Kingdom",       region: "UK"        },
+  { country: "United States",        region: "USA"       },
+];
+
+const KEYWORDS = ["Product Designer", "UI/UX Designer"];
+const PER_QUERY = 12;
+const POSTED_SINCE = "7 days";
 
 function timeAgo(d) {
   if (!d) return "Recently";
@@ -16,125 +30,89 @@ function timeAgo(d) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function stripHTML(s = "") {
-  return s.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ").trim();
-}
+const guessRole = (t = "") =>
+  t.toLowerCase().includes("product designer") ? "Product Designer" : "UI/UX Designer";
 
-function parseRSS(xml = "") {
-  const out = [];
-  for (const b of xml.match(/<item[\s\S]*?<\/item>/g) || []) {
-    const get = t => {
-      const m = b.match(new RegExp(`<${t}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${t}>|<${t}[^>]*>([\\s\\S]*?)</${t}>`));
-      return m ? stripHTML((m[1] || m[2] || "").trim()) : "";
-    };
-    out.push({ title: get("title"), link: get("link"), desc: get("description").slice(0, 240), pubDate: get("pubDate") });
+async function runActor(keyword, country) {
+  const url = `https://api.apify.com/v2/acts/${ACTOR}/run-sync-get-dataset-items?token=${TOKEN}`;
+  const body = { keyword, country, max_results: PER_QUERY, posted_since: POSTED_SINCE, job_type: "all" };
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`HTTP ${res.status}: ${txt.slice(0, 200)}`);
   }
-  return out;
+  return res.json();
 }
 
-const tags = (txt = "") => {
-  const t = txt.toLowerCase();
-  return ["Figma", "Sketch", "Adobe XD", "Prototyping", "Wireframing", "Design Systems", "User Research", "Framer"].filter(k => t.includes(k.toLowerCase()));
-};
+function normalize(raw, region) {
+  const title    = raw.title || raw.jobTitle || raw.position || "Untitled role";
+  const company  = raw.company || raw.companyName || raw.company_name || "See listing";
+  const location = raw.location || raw.jobLocation || region;
+  const url      = raw.url || raw.jobUrl || raw.link || raw.applyUrl || "";
+  const platform = raw.platform || raw.source || raw.jobBoard || "Other";
+  const posted   = raw.postedAt || raw.posted_at || raw.datePosted || raw.publishedAt;
+  let salary = "Not Disclosed";
+  if (raw.salary) {
+    if (typeof raw.salary === "string") salary = raw.salary;
+    else if (raw.salary.minValue || raw.salary.maxValue) {
+      const c = raw.salary.currency || "";
+      salary = `${c} ${raw.salary.minValue || ""}-${raw.salary.maxValue || ""}`.trim();
+    }
+  } else if (raw.salaryText) salary = raw.salaryText;
 
-const UA = { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36", "Accept": "application/xml,text/html,*/*" } };
-const KW = ["designer", "ux", "ui/ux", "ui ux", "product design", "user experience", "user interface"];
-const isDesign = (t = "") => KW.some(k => t.toLowerCase().includes(k));
+  const tags = Array.isArray(raw.skills) ? raw.skills.slice(0, 5)
+    : Array.isArray(raw.tags) ? raw.tags.slice(0, 5) : [];
 
-async function rssSource(name, url, loc) {
-  try {
-    const r = await fetch(url, UA);
-    if (!r.ok) { log(`${name}: HTTP ${r.status}`); return []; }
-    const items = parseRSS(await r.text()).filter(i => i.title);
-    const jobs = items.map(i => {
-      const p = i.title.split(" - ");
-      return {
-        id: `${name}_${uid(i.link || i.title)}`,
-        title: p[0]?.trim() || i.title,
-        company: p[1]?.trim() || "See listing",
-        location: loc, platform: name, postedTime: timeAgo(i.pubDate),
-        experience: "0-3 years", salary: "Not Disclosed", url: i.link,
-        description: i.desc, tags: tags(i.desc), role: guessRole(i.title),
-      };
-    });
-    log(`${name}: ${jobs.length} jobs`);
-    return jobs;
-  } catch (e) { log(`${name} error: ${e.message}`); return []; }
-}
-
-async function fromArbeitnow() {
-  try {
-    const r = await fetch("https://arbeitnow.com/api/job-board-api", UA);
-    if (!r.ok) return [];
-    const { data = [] } = await r.json();
-    const jobs = data.filter(j => isDesign(j.title)).slice(0, 15).map(j => ({
-      id: `arb_${j.slug || uid(j.title)}`, title: j.title, company: j.company_name,
-      location: j.location || "Remote", platform: "Arbeitnow",
-      postedTime: timeAgo(new Date(j.created_at * 1000).toISOString()),
-      experience: "0-3 years", salary: "Not Disclosed", url: j.url,
-      description: stripHTML(j.description || "").slice(0, 240), tags: (j.tags || []).slice(0, 5), role: guessRole(j.title),
-    }));
-    log(`Arbeitnow: ${jobs.length} jobs`);
-    return jobs;
-  } catch (e) { log(`Arbeitnow error: ${e.message}`); return []; }
-}
-
-async function fromRemotive() {
-  try {
-    const r = await fetch("https://remotive.com/api/remote-jobs?category=design&limit=30", UA);
-    if (!r.ok) return [];
-    const { jobs: list = [] } = await r.json();
-    const jobs = list.filter(j => isDesign(j.title)).slice(0, 15).map(j => ({
-      id: `rem_${j.id}`, title: j.title, company: j.company_name, location: "Remote",
-      platform: "Remotive", postedTime: timeAgo(j.publication_date), experience: "0-3 years",
-      salary: j.salary || "Not Disclosed", url: j.url,
-      description: stripHTML(j.description || "").slice(0, 240), tags: tags(j.description || ""), role: guessRole(j.title),
-    }));
-    log(`Remotive: ${jobs.length} jobs`);
-    return jobs;
-  } catch (e) { log(`Remotive error: ${e.message}`); return []; }
-}
-
-async function fromRemoteOK() {
-  try {
-    const r = await fetch("https://remoteok.com/api?tags=design,ux", UA);
-    if (!r.ok) return [];
-    const data = await r.json();
-    const jobs = (Array.isArray(data) ? data : []).filter(j => j.position && isDesign(j.position)).slice(0, 12).map(j => ({
-      id: `rok_${j.id}`, title: j.position, company: j.company, location: "Remote",
-      platform: "RemoteOK", postedTime: timeAgo(j.date), experience: "0-3 years",
-      salary: j.salary || "Not Disclosed", url: j.url || `https://remoteok.com/l/${j.id}`,
-      description: stripHTML(j.description || "").slice(0, 240), tags: (j.tags || []).slice(0, 5), role: guessRole(j.position),
-    }));
-    log(`RemoteOK: ${jobs.length} jobs`);
-    return jobs;
-  } catch (e) { log(`RemoteOK error: ${e.message}`); return []; }
+  return {
+    id: `${platform}_${Buffer.from(url || title + company).toString("base64").slice(0, 12)}`,
+    title, company, location, region, platform,
+    postedTime: timeAgo(posted),
+    experience: raw.seniority || raw.experience || "0-3 years",
+    salary, url,
+    description: (raw.description || raw.summary || "").replace(/<[^>]*>/g, "").slice(0, 240),
+    tags, role: raw.role || guessRole(title),
+  };
 }
 
 async function main() {
-  log("Fetching from all sources...");
-  const results = await Promise.all([
-    rssSource("Naukri", "https://www.naukri.com/rss/searchresults.php?src=search&query=ui+ux+designer&location=india&jobAge=1", "India"),
-    rssSource("TimesJobs", "https://www.timesjobs.com/rss/jobssearchresult.rss?Keywords=ui+ux+designer&Location=india&jobAge=1", "India"),
-    rssSource("Internshala", "https://internshala.com/rss/jobs/ui-ux-design", "India"),
-    rssSource("WWR", "https://weworkremotely.com/categories/remote-design-jobs.rss", "Remote"),
-    rssSource("Jobicy", "https://jobicy.com/?feed=job_feed&job_categories=design", "Remote"),
-    fromArbeitnow(), fromRemotive(), fromRemoteOK(),
-  ]);
+  if (!TOKEN) throw new Error("APIFY_TOKEN env var not set");
+  log("Starting Apify multi-country fetch...");
+
+  const all = [];
   const seen = new Set();
-  const all = results.flat().filter(j => {
-    const k = j.url || j.title;
-    if (!k || seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-  if (all.length === 0) throw new Error("No jobs from any source");
+
+  for (const { country, region } of COUNTRIES) {
+    for (const keyword of KEYWORDS) {
+      try {
+        const items = await runActor(keyword, country);
+        let added = 0;
+        for (const raw of items) {
+          const job = normalize(raw, region);
+          const key = job.url || job.title + job.company;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          all.push(job);
+          added++;
+        }
+        log(`${country} / ${keyword}: ${added} jobs`);
+      } catch (e) {
+        log(`${country} / ${keyword} error: ${e.message}`);
+      }
+    }
+  }
+
+  if (all.length === 0) throw new Error("No jobs returned from Apify");
+
   await fs.writeFile(OUTPUT, JSON.stringify({
     fetchedAt: new Date().toISOString(),
     count: all.length,
     jobs: all,
   }, null, 2));
+
   log(`Done. Saved ${all.length} jobs.`);
 }
 
