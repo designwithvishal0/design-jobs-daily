@@ -7,13 +7,38 @@ const TOKEN  = process.env.APIFY_TOKEN;
 const ACTOR  = "agentx~all-jobs-scraper";
 const log = m => console.log(`[${new Date().toISOString()}] ${m}`);
 
+// Platform names must exactly match the actor's input schema enum
 const COUNTRIES = [
-  { country: "Singapore",            region: "Singapore" },
-  { country: "United Arab Emirates", region: "Dubai"     },
-  { country: "India",                region: "India"     },
+  { country: "India", region: "India",
+    platforms: ["Indeed","Glassdoor","Naukri.com","foundit","Talent.com","Jooble"] },
 ];
 
 const KEYWORDS = ["Product Designer", "UI/UX Designer"];
+
+// Dedicated actors for platforms the main scraper does not cover.
+// These are location agnostic: startup and X roles are mostly remote anyway.
+const EXTRA_SOURCES = [
+  {
+    label: "Wellfound", region: "Global",
+    actor: "orgupdate~wellfound-jobs-scraper",
+    input: { countryName: "Remote", locationName: "Remote", includeKeyword: "designer", pagesToFetch: 1, jobType: "FULLTIME", datePosted: "week" },
+  },
+  {
+    label: "Y Combinator", region: "Global",
+    actor: "parsebird~yc-jobs-scraper",
+    input: { searchQuery: "product designer", roleFilter: "designer", maxResults: 25 },
+  },
+  {
+    label: "X Jobs", region: "Global",
+    actor: "powerai~twitter-jobs-search-scraper",
+    input: { keyword: "product designer", maxResults: 15 },
+  },
+  {
+    label: "X Jobs", region: "Global",
+    actor: "powerai~twitter-jobs-search-scraper",
+    input: { keyword: "ui ux designer", maxResults: 15 },
+  },
+];
 
 function timeAgo(d) {
   if (!d) return "Recently";
@@ -27,13 +52,27 @@ function timeAgo(d) {
 const guessRole = t =>
   (t||"").toLowerCase().includes("product designer") ? "Product Designer" : "UI/UX Designer";
 
-async function startRun(keyword, country) {
+// Keep only roles suited to 0-3 years of experience
+const MAX_YOE = 3;
+const SENIOR_TITLE = /\b(senior|sr\.?|lead|principal|staff|head of|director|vp|vice president|architect)\b/i;
+
+function fitsExperience(job) {
+  if (SENIOR_TITLE.test(job.title)) return false;
+  const exp = (job.experience || "").toLowerCase();
+  if (/\b(senior|lead|principal|staff|director|expert)\b/.test(exp)) return false;
+  // Parse patterns like "2-5 years", "5+ years", "minimum 4 years"
+  const m = exp.match(/(\d+)\s*(?:-|to|\+)?/);
+  if (m && parseInt(m[1], 10) > MAX_YOE) return false;
+  return true; // unknown experience stays in
+}
+
+async function startRun(actor, input) {
   const res = await fetch(
-    `https://api.apify.com/v2/acts/${ACTOR}/runs?token=${TOKEN}`,
+    `https://api.apify.com/v2/acts/${actor}/runs?token=${TOKEN}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ keyword, country, max_results: 10, posted_since: "7 days", job_type: "all" }),
+      body: JSON.stringify(input),
     }
   );
   if (!res.ok) throw new Error(`start ${res.status}: ${(await res.text()).slice(0,100)}`);
@@ -60,12 +99,12 @@ async function getItems(datasetId) {
   return res.json();
 }
 
-function normalize(raw, region) {
-  const title    = raw.title || raw.jobTitle || raw.position || "Untitled";
-  const company  = raw.company || raw.companyName || "See listing";
-  const location = raw.location || raw.jobLocation || region;
-  const url      = raw.url || raw.jobUrl || raw.link || raw.applyUrl || "";
-  const platform = raw.platform || raw.source || raw.jobBoard || "Other";
+function normalize(raw, region, platformOverride) {
+  const title    = raw.title || raw.jobTitle || raw.position || raw.role || raw.name || "Untitled";
+  const company  = raw.company || raw.companyName || raw.company_name || raw.startup || "See listing";
+  const location = raw.location || raw.jobLocation || raw.locationName || region;
+  const url      = raw.url || raw.jobUrl || raw.link || raw.applyUrl || raw.job_url || "";
+  const platform = platformOverride || raw.platform || raw.source || raw.jobBoard || "Other";
   const posted   = raw.postedAt || raw.posted_at || raw.datePosted || raw.publishedAt;
   let salary = "Not Disclosed";
   if (raw.salary) salary = typeof raw.salary === "string" ? raw.salary : `${raw.salary.currency||""} ${raw.salary.minValue||""}-${raw.salary.maxValue||""}`.trim();
@@ -87,16 +126,17 @@ async function main() {
   log("Starting poll-based fetch...");
   const all = [], seen = new Set();
 
-  for (const { country, region } of COUNTRIES) {
+  for (const { country, region, platforms } of COUNTRIES) {
     for (const keyword of KEYWORDS) {
       try {
         log(`Starting: ${country} / ${keyword}`);
-        const { runId, datasetId } = await startRun(keyword, country);
+        const { runId, datasetId } = await startRun(ACTOR, { keyword, country, platforms, max_results: 10, posted_since: "7 days", job_type: "all" });
         await pollRun(runId);
         const items = await getItems(datasetId);
         let added = 0;
         for (const raw of items) {
           const job = normalize(raw, region);
+          if (!fitsExperience(job)) continue;
           const key = job.url || job.title + job.company;
           if (seen.has(key)) continue;
           seen.add(key); all.push(job); added++;
@@ -108,7 +148,31 @@ async function main() {
     }
   }
 
-  if (all.length === 0) throw new Error("Zero jobs from all sources");
+  for (const { label, region, actor, input } of EXTRA_SOURCES) {
+    try {
+      log(`Starting extra source: ${label}`);
+      const { runId, datasetId } = await startRun(actor, input);
+      await pollRun(runId);
+      const items = await getItems(datasetId);
+      let added = 0;
+      for (const raw of items) {
+        const job = normalize(raw, region, label);
+        if (!fitsExperience(job)) continue;
+        const key = job.url || job.title + job.company;
+        if (seen.has(key)) continue;
+        seen.add(key); all.push(job); added++;
+      }
+      log(`Done: ${label} => ${added} jobs`);
+    } catch (e) {
+      log(`Error: ${label} => ${e.message}`);
+    }
+  }
+
+  if (all.length === 0) {
+    log("WARNING: Zero jobs from all sources. Keeping existing jobs.json untouched.");
+    log("Check the actor input schema at apify.com/agentx/all-jobs-scraper if this persists.");
+    return;
+  }
 
   await fs.writeFile(OUTPUT, JSON.stringify({
     fetchedAt: new Date().toISOString(),

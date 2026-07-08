@@ -6,15 +6,16 @@ A fully automated job aggregator for Product Designers and UI/UX Designers. It p
 
 ## Why this exists
 
-Design job hunting in India and nearby markets is scattered across ten platforms, and most listings are dead by the time you find them. Instead of checking LinkedIn, Naukri, Glassdoor, Indeed and five other sites every morning, this repo checks all of them for you and gives you one page with only recent, relevant roles.
+Design job hunting in India is scattered across ten platforms, and most listings are dead by the time you find them. Instead of checking LinkedIn, Naukri, Glassdoor, Indeed and five other sites every morning, this repo checks all of them for you and gives you one page with only recent, relevant roles.
 
 I built it for my own job search. Then designers in my network started using it as their first stop every morning, so I kept it running.
 
 ## What it covers
 
 * **Roles:** Product Designer, UI/UX Designer
-* **Regions:** India, Singapore, Dubai
-* **Sources:** LinkedIn, Indeed, Glassdoor, Glints, Foundit, JobStreet, Talent.com, Jooble and more
+* **Regions:** India for the major job boards, worldwide for startup and X roles
+* **Sources:** Indeed, Glassdoor, Naukri, Foundit, Talent.com, Jooble, Wellfound, Y Combinator (Work at a Startup) and X Jobs
+* **Experience band:** roles requiring up to 3 years, senior and lead titles filtered out
 * **Freshness:** only jobs posted within the last 7 days make it in
 
 ## How it works
@@ -23,7 +24,7 @@ I built it for my own job search. Then designers in my network started using it 
 GitHub Actions (daily cron, 8 AM IST)
         │
         ▼
-fetch-jobs.mjs ──► Apify actor scrapes each keyword × region pair
+fetch-jobs.mjs ──► Apify actor scrapes each keyword across 9 platforms
         │
         ▼
 Dedupe, normalize, tag role and region
@@ -58,8 +59,9 @@ After that it runs itself every day.
 ## Roadmap
 
 * Email or Telegram digest of new roles each morning
+* More regions (Singapore, Dubai and beyond)
 * Salary range extraction where platforms expose it
-* More regions and role keywords
+* More role keywords
 * Company deduplication across platforms
 
 ## License
