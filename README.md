@@ -13,8 +13,8 @@ I built it for my own job search. Then designers in my network started using it 
 ## What it covers
 
 * **Roles:** Product Designer, UI/UX Designer
-* **Regions:** India for the major job boards, worldwide for startup and X roles
-* **Sources:** Indeed, Glassdoor, Naukri, Foundit, Talent.com, Jooble, Wellfound, Y Combinator (Work at a Startup) and X Jobs
+* **Regions:** India via Naukri, worldwide remote for startup and X roles
+* **Sources:** Naukri, Wellfound, Y Combinator (Work at a Startup) and X Jobs
 * **Experience band:** roles requiring up to 3 years, senior and lead titles filtered out
 * **Freshness:** only jobs posted within the last 7 days make it in
 
@@ -41,7 +41,7 @@ The entire stack is a single Node script, one workflow file, and one static HTML
 ## Tech
 
 * **Node.js 20** with native fetch, no dependencies
-* **Apify** for the underlying multi platform scraping actor
+* **Apify** actors for each job platform
 * **GitHub Actions** for the daily schedule and auto commit
 * **GitHub Pages** for hosting the viewer
 * **Vanilla HTML/CSS/JS** viewer with region and role filters
@@ -50,7 +50,7 @@ The entire stack is a single Node script, one workflow file, and one static HTML
 
 1. Fork this repo
 2. Get an Apify token and add it as a repository secret named `APIFY_TOKEN`
-3. Edit the `COUNTRIES` and `KEYWORDS` arrays in `fetch-jobs.mjs` to match your search
+3. Edit the `SOURCES` array in `fetch-jobs.mjs` to match your role and platforms
 4. Enable GitHub Pages (Settings → Pages → Deploy from branch → main → root)
 5. Trigger the first run manually from the Actions tab
 
