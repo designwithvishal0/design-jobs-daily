@@ -1,5 +1,5 @@
 ---
-name: stitch-loop
+name: stitch-stitch-loop
 description: Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern
 allowed-tools:
   - "stitch*:*"

@@ -1,5 +1,5 @@
 ---
-name: stitch::generate-design
+name: stitch-generate-design
 description: >-
   Generate new screens from text prompts or images, edit existing screens
   with prompts and design system tokens, and generate design variants using

@@ -1,5 +1,5 @@
 ---
-name: stitch::upload-to-stitch
+name: stitch-upload-to-stitch
 description: >-
   Upload local assets (images, mockups, extracted HTML, design markdown) to a Stitch project.
   ALWAYS use this skill when you need to upload visual assets, HTML pages, or design docs

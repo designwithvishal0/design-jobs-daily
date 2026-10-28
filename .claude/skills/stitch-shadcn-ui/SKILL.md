@@ -1,5 +1,5 @@
 ---
-name: shadcn-ui
+name: stitch-shadcn-ui
 description: Expert guidance for integrating and building applications with shadcn/ui components, including component discovery, installation, customization, and best practices.
 allowed-tools:
   - "shadcn*:*"
