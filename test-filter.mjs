@@ -6,3 +6,4 @@ for (const t of ["UI/UX Designer", "Product Designer", "Founding Product Designe
 for (const t of ["Physical Design Automation Engineer", "Product Design Engineer", "CAD & Creo Design Engineer", "Toy Designer - Plush/Soft Toys", "Industrial Designer", "Visual Designer ( Interactives )", "Product Designer (Internship)", "Designer / Design Engineer", "Product Designer- Luxury Lighting"])
   assert.ok(!isDesignRole(t), t);
 console.log("filter ok");
+assert.equal(isDesignRole("Junior Product Designer - Intership Paris"), false);

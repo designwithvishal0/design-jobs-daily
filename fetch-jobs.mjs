@@ -20,7 +20,7 @@ const SOURCES = [
   {
     label: "Wellfound", region: "Global",
     actor: "orgupdate~wellfound-jobs-scraper",
-    input: { countryName: "Remote", locationName: "Remote", includeKeyword: "designer", pagesToFetch: 1, jobType: "FULLTIME", datePosted: "week" },
+    input: { countryName: "Remote", locationName: "Remote", includeKeyword: "designer", pagesToFetch: 3, jobType: "FULLTIME", datePosted: "week" },
   },
   {
     label: "Y Combinator", region: "Global",
@@ -58,7 +58,7 @@ const SENIOR_TITLE = /\b(senior|sr\.?|lead|principal|staff|head of|director|vp|v
 // Keep only real UI/UX and product design roles. Naukri's "product design" search
 // also returns CAD, hardware and toy roles, and visual or graphic roles are out of scope.
 const DESIGN_TITLE = /\b(ui|ux|ui\/ux|product designer|interaction designer|experience designer|design generalist|founding designer)\b/i;
-const NOT_DESIGN = /\b(engineer|engineering|cad|creo|solidworks|mechanical|industrial|physical|automotive|toy|plush|fashion|interior|textile|jewel\w*|lighting|visual|graphic|intern|internship|trainee)\b/i;
+const NOT_DESIGN = /\b(engineer|engineering|cad|creo|solidworks|mechanical|industrial|physical|automotive|toy|plush|fashion|interior|textile|jewel\w*|lighting|visual|graphic|intern|internship|intership|trainee)\b/i;
 
 export const isDesignRole = title => DESIGN_TITLE.test(title || "") && !NOT_DESIGN.test(title || "");
 
@@ -105,10 +105,10 @@ async function getItems(datasetId) {
 }
 
 function normalize(raw, region, platformOverride) {
-  const title    = raw.title || raw.jobTitle || raw.position || raw.role || raw.name || "Untitled";
+  const title    = raw.title || raw.jobTitle || raw.job_title || raw.position || raw.role || raw.name || "Untitled";
   const company  = raw.company || raw.companyName || raw.company_name || raw.startup || "See listing";
   const location = raw.location || raw.jobLocation || raw.locationName || raw.placeholders?.location || region;
-  const url      = raw.url || raw.jobUrl || raw.link || raw.applyUrl || raw.job_url || raw.jdLink || raw.jdURL || raw.jobLink || raw.applyLink || raw.staticUrl || "";
+  const url      = raw.url || raw.URL || raw.jobUrl || raw.link || raw.applyUrl || raw.job_url || raw.jdLink || raw.jdURL || raw.jobLink || raw.applyLink || raw.staticUrl || "";
   const platform = platformOverride || raw.platform || raw.source || raw.jobBoard || "Other";
   const posted   = raw.postedAt || raw.posted_at || raw.datePosted || raw.publishedAt || raw.createdDate;
   let salary = "Not Disclosed";
@@ -140,6 +140,7 @@ async function main() {
       await pollRun(runId);
       const items = await getItems(datasetId);
       log(`  ${label} raw items: ${items.length}${items[0] ? `, fields: ${Object.keys(items[0]).slice(0, 15).join(", ")}` : ""}`);
+      if (items.length && items.length < 3) log(`  ${label} sample: ${JSON.stringify(items[0]).slice(0, 400)}`);
       let added = 0, dropped = { role: 0, exp: 0, url: 0 };
       for (const raw of items) {
         const job = normalize(raw, region, label);
