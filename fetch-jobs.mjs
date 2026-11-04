@@ -55,6 +55,13 @@ const guessRole = t =>
 const MAX_YOE = 3;
 const SENIOR_TITLE = /\b(senior|sr\.?|lead|principal|staff|head of|director|vp|vice president|architect)\b/i;
 
+// Keep only real UI/UX and product design roles. Naukri's "product design" search
+// also returns CAD, hardware and toy roles, and visual or graphic roles are out of scope.
+const DESIGN_TITLE = /\b(ui|ux|ui\/ux|product designer|interaction designer|experience designer|design generalist|founding designer)\b/i;
+const NOT_DESIGN = /\b(engineer|engineering|cad|creo|solidworks|mechanical|industrial|physical|automotive|toy|plush|fashion|interior|textile|jewel\w*|lighting|visual|graphic|intern|internship|trainee)\b/i;
+
+export const isDesignRole = title => DESIGN_TITLE.test(title || "") && !NOT_DESIGN.test(title || "");
+
 function fitsExperience(job) {
   if (SENIOR_TITLE.test(job.title)) return false;
   const exp = (job.experience || "").toLowerCase();
@@ -101,18 +108,20 @@ function normalize(raw, region, platformOverride) {
   const title    = raw.title || raw.jobTitle || raw.position || raw.role || raw.name || "Untitled";
   const company  = raw.company || raw.companyName || raw.company_name || raw.startup || "See listing";
   const location = raw.location || raw.jobLocation || raw.locationName || raw.placeholders?.location || region;
-  const url      = raw.url || raw.jobUrl || raw.link || raw.applyUrl || raw.job_url || raw.jdLink || "";
+  const url      = raw.url || raw.jobUrl || raw.link || raw.applyUrl || raw.job_url || raw.jdLink || raw.jdURL || raw.jobLink || raw.applyLink || raw.staticUrl || "";
   const platform = platformOverride || raw.platform || raw.source || raw.jobBoard || "Other";
   const posted   = raw.postedAt || raw.posted_at || raw.datePosted || raw.publishedAt || raw.createdDate;
   let salary = "Not Disclosed";
   if (raw.salary) salary = typeof raw.salary === "string" ? raw.salary : `${raw.salary.currency||""} ${raw.salary.minValue||""}-${raw.salary.maxValue||""}`.trim();
   else if (raw.salaryText) salary = raw.salaryText;
+  // ponytail: some actors (Naukri) send no link; fall back to a search for the exact listing until the actor's URL field is known
+  const link = url || `https://www.google.com/search?q=${encodeURIComponent(`${title} ${company} ${platform}`)}`;
   return {
     id: `${platform}_${Buffer.from(url||title+company).toString("base64").slice(0,12)}`,
     title, company, location, region, platform,
     postedTime: timeAgo(posted),
     experience: raw.seniority || raw.experience || raw.experienceText || "0-3 years",
-    salary, url,
+    salary, url: link,
     description: (raw.description || raw.summary || raw.jobDescription || "").replace(/<[^>]*>/g,"").slice(0,240),
     tags: (raw.skills || raw.tags || raw.keySkills || []).slice(0,5),
     role: raw.role || guessRole(title),
@@ -133,7 +142,7 @@ async function main() {
       let added = 0;
       for (const raw of items) {
         const job = normalize(raw, region, label);
-        if (!fitsExperience(job)) continue;
+        if (!job.url || !isDesignRole(job.title) || !fitsExperience(job)) continue;
         const key = job.url || job.title + job.company;
         if (seen.has(key)) continue;
         seen.add(key); all.push(job); added++;
@@ -158,4 +167,4 @@ async function main() {
   log(`Saved ${all.length} total jobs.`);
 }
 
-main().catch(e => { log(`FATAL: ${e.message}`); process.exit(1); });
+if (process.argv[1] === fileURLToPath(import.meta.url)) main().catch(e => { log(`FATAL: ${e.message}`); process.exit(1); });
