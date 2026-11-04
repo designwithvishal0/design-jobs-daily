@@ -72,4 +72,4 @@ MIT. Fork it, adapt it for your own role and region, and share it with anyone jo
 
 ---
 
-Built and maintained by [Vishal](https://designwvishal.framer.website), Product Designer.
+Built and maintained by [Vishal](https://vishal-designs.vercel.app), Product Designer.
