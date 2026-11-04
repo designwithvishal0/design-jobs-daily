@@ -25,7 +25,7 @@ const SOURCES = [
   {
     label: "Y Combinator", region: "Global",
     actor: "parsebird~yc-jobs-scraper",
-    input: { searchQuery: "product designer", roleFilter: "designer", maxResults: 25 },
+    input: { searchQuery: "product designer", roleFilter: "designer", maxResults: 50 },
   },
   {
     label: "X Jobs", region: "Global",
@@ -139,15 +139,18 @@ async function main() {
       const { runId, datasetId } = await startRun(actor, input);
       await pollRun(runId);
       const items = await getItems(datasetId);
-      let added = 0;
+      log(`  ${label} raw items: ${items.length}${items[0] ? `, fields: ${Object.keys(items[0]).slice(0, 15).join(", ")}` : ""}`);
+      let added = 0, dropped = { role: 0, exp: 0, url: 0 };
       for (const raw of items) {
         const job = normalize(raw, region, label);
-        if (!job.url || !isDesignRole(job.title) || !fitsExperience(job)) continue;
+        if (!job.url) { dropped.url++; continue; }
+        if (!isDesignRole(job.title)) { dropped.role++; continue; }
+        if (!fitsExperience(job)) { dropped.exp++; continue; }
         const key = job.url || job.title + job.company;
         if (seen.has(key)) continue;
         seen.add(key); all.push(job); added++;
       }
-      log(`Done: ${label} => ${added} jobs`);
+      log(`Done: ${label} => ${added} jobs (dropped: role ${dropped.role}, experience ${dropped.exp}, no link ${dropped.url})`);
     } catch (e) {
       log(`Error: ${label} => ${e.message}`);
     }
