@@ -1,6 +1,6 @@
 # Design Jobs Daily
 
-A fully automated job aggregator for Product Designers and UI/UX Designers. It pulls fresh listings every morning from four sources, keeps only real UI/UX and product design roles, deduplicates them, filters out stale postings, and publishes everything to a clean single page viewer. No server, no database, no maintenance. GitHub does all the work.
+A fully automated job aggregator for Product Designers and UI/UX Designers. It pulls fresh listings every morning from four sources, keeps only real UI/UX and product design roles, deduplicates them, filters out stale postings, and publishes everything to a clean single page viewer. No server, no database. GitHub does the daily work.
 
 **Live site:** [designwithvishal0.github.io/design-jobs-daily](https://designwithvishal0.github.io/design-jobs-daily)
 
@@ -14,10 +14,10 @@ I built it for my own job search. Then designers in my network started using it 
 
 * **Roles:** Product Designer, UI/UX Designer
 * **Regions:** India via Naukri, worldwide remote for startup and X roles
-* **Sources:** Naukri, Wellfound, Y Combinator (Work at a Startup) and X Jobs
+* **Sources:** Naukri, Wellfound, Y Combinator (Work at a Startup) and X Jobs. As of November 2026, Naukri and Y Combinator return results; the Wellfound and X scrapers currently come back empty
 * **Experience band:** roles requiring up to 3 years, senior and lead titles filtered out
 * **Role filter:** titles must be UI, UX or product designer roles. Engineering, CAD, industrial, visual, graphic and internship titles are dropped, because the boards' "product design" search returns a lot of hardware work
-* **Freshness:** only jobs posted within the last 7 days make it in
+* **Freshness:** Naukri and Wellfound are asked for the last 7 days only; Y Combinator and X results show their posted time on each card
 
 ## How it works
 
@@ -41,11 +41,11 @@ The entire stack is a single Node script, one workflow file, and one static HTML
 
 ## Tech
 
-* **Node.js 20** with native fetch, no dependencies
+* **Node.js 24** with native fetch, no dependencies
 * **Apify** actors for each job platform
 * **GitHub Actions** for the daily schedule and auto commit
 * **GitHub Pages** for hosting the viewer
-* **Vanilla HTML/CSS/JS** viewer with region and role filters
+* **Vanilla HTML/CSS/JS** viewer with role and platform filters
 
 ## Running it yourself
 
