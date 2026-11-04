@@ -1,12 +1,12 @@
 # Design Jobs Daily
 
-A fully automated job aggregator for Product Designers and UI/UX Designers. It pulls fresh listings every morning from 8+ job platforms, deduplicates them, filters out stale postings, and publishes everything to a clean single page viewer. No server, no database, no maintenance. GitHub does all the work.
+A fully automated job aggregator for Product Designers and UI/UX Designers. It pulls fresh listings every morning from four sources, keeps only real UI/UX and product design roles, deduplicates them, filters out stale postings, and publishes everything to a clean single page viewer. No server, no database, no maintenance. GitHub does all the work.
 
 **Live site:** [designwithvishal0.github.io/design-jobs-daily](https://designwithvishal0.github.io/design-jobs-daily)
 
 ## Why this exists
 
-Design job hunting in India is scattered across ten platforms, and most listings are dead by the time you find them. Instead of checking LinkedIn, Naukri, Glassdoor, Indeed and five other sites every morning, this repo checks all of them for you and gives you one page with only recent, relevant roles.
+Design job hunting in India is scattered across many platforms, and most listings are dead by the time you find them. This repo checks a few of them every morning and gives you one page with only recent, relevant roles.
 
 I built it for my own job search. Then designers in my network started using it as their first stop every morning, so I kept it running.
 
@@ -16,6 +16,7 @@ I built it for my own job search. Then designers in my network started using it 
 * **Regions:** India via Naukri, worldwide remote for startup and X roles
 * **Sources:** Naukri, Wellfound, Y Combinator (Work at a Startup) and X Jobs
 * **Experience band:** roles requiring up to 3 years, senior and lead titles filtered out
+* **Role filter:** titles must be UI, UX or product designer roles. Engineering, CAD, industrial, visual, graphic and internship titles are dropped, because the boards' "product design" search returns a lot of hardware work
 * **Freshness:** only jobs posted within the last 7 days make it in
 
 ## How it works
@@ -24,10 +25,10 @@ I built it for my own job search. Then designers in my network started using it 
 GitHub Actions (daily cron, 8 AM IST)
         │
         ▼
-fetch-jobs.mjs ──► Apify actor scrapes each keyword across 9 platforms
+fetch-jobs.mjs ──► Apify actors scrape each keyword on 4 sources
         │
         ▼
-Dedupe, normalize, tag role and region
+Role and experience filter, dedupe, normalize, tag role and region
         │
         ▼
 jobs.json committed back to the repo
@@ -53,6 +54,7 @@ The entire stack is a single Node script, one workflow file, and one static HTML
 3. Edit the `SOURCES` array in `fetch-jobs.mjs` to match your role and platforms
 4. Enable GitHub Pages (Settings → Pages → Deploy from branch → main → root)
 5. Trigger the first run manually from the Actions tab
+6. Check the title filter with `node test-filter.mjs` after you change it
 
 After that it runs itself every day.
 
